@@ -87,15 +87,19 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   return (
     <div id="login-container" className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
       {/* Top Navbar */}
-      <nav id="top-navbar" className="bg-blue-900 border-b border-blue-800 px-6 py-4 flex items-center justify-between shadow-md">
-        <div id="navbar-brand" className="flex items-center gap-3">
-          <SmttLogo height={34} />
-          <span className="font-bold text-xl tracking-wider text-white">SMTT B2B</span>
-          <span className="text-blue-300 font-medium">|</span>
-          <span className="text-blue-100 font-light text-sm tracking-wide">Ticket Manager</span>
+      <nav id="top-navbar" className="w-full bg-white border-b border-slate-200 px-6 py-3.5 grid grid-cols-3 items-center shadow-sm">
+        <div id="navbar-brand" className="flex items-center justify-start">
+          <SmttLogo height={36} />
         </div>
-        <div id="navbar-status" className="text-xs text-blue-200 bg-blue-950/50 px-3 py-1 rounded-full border border-blue-800">
-          Espace Authentification
+        <div id="navbar-title" className="flex items-center justify-center gap-2 whitespace-nowrap">
+          <span className="font-bold text-lg sm:text-xl tracking-wider text-[#1E3A8A]">SMTT B2B</span>
+          <span className="text-slate-300 font-medium">|</span>
+          <span className="text-[#0F172A] font-medium text-xs sm:text-sm tracking-wide">Ticket Manager</span>
+        </div>
+        <div className="flex items-center justify-end">
+          <div id="navbar-status" className="text-xs font-semibold text-[#0F172A] bg-[#F1F5F9] px-3 py-1 rounded-full border border-[#CBD5E1] whitespace-nowrap">
+            Espace Authentification
+          </div>
         </div>
       </nav>
 

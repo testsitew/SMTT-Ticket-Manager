@@ -1047,30 +1047,27 @@ export default function Admin1Page({ fullName, onLogout }: Admin1PageProps) {
     <div id="admin1-portal" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-orange-600/30">
       
       {/* Top Main Navbar */}
-      <nav id="navbar-main" className="bg-slate-900 border-b border-slate-800 px-4 md:px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
-        <div id="navbar-brand-sec" className="flex items-center gap-3">
-          <SmttLogo height={32} />
-          <div className="h-6 w-px bg-slate-800" />
-          <div className="bg-gradient-to-br from-red-600 to-orange-500 text-white font-black px-3 py-1.5 rounded-xl tracking-tighter text-base shadow-lg shadow-red-600/20">
-            Ooredoo
-          </div>
-          <div className="h-6 w-px bg-slate-800" />
-          <div className="flex flex-col">
-            <span className="font-extrabold text-xs tracking-wider text-white uppercase">As Built FH Workflow</span>
-            <span className="text-[10px] text-slate-500">Validation & Automatisation Terrain</span>
-          </div>
+      <nav id="navbar-main" className="w-full bg-white border-b border-slate-200 px-6 py-3 grid grid-cols-3 items-center shadow-sm">
+        <div id="navbar-brand-sec" className="flex items-center justify-start">
+          <SmttLogo height={36} />
+        </div>
+
+        <div id="navbar-title" className="flex items-center justify-center gap-2 whitespace-nowrap">
+          <span className="font-bold text-lg sm:text-xl tracking-wider text-[#1E3A8A]">SMTT B2B</span>
+          <span className="text-slate-300 font-medium">|</span>
+          <span className="text-[#0F172A] font-medium text-xs sm:text-sm tracking-wide">Ticket Manager</span>
         </div>
 
         {/* User Info & Logout */}
-        <div id="user-info-section" className="flex items-center gap-4">
+        <div id="user-info-section" className="flex items-center justify-end gap-2 sm:gap-3">
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 text-slate-400 hover:text-white transition-colors relative cursor-pointer"
+              className="p-2 text-slate-600 hover:text-[#0F172A] transition-colors relative cursor-pointer"
             >
               <Bell size={20} />
               {notifications.filter(n => !n.isRead).length > 0 && (
-                <span className="absolute top-1 right-1 bg-red-600 text-white text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-slate-900">
+                <span className="absolute top-1 right-1 bg-red-600 text-white text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-white">
                   {notifications.filter(n => !n.isRead).length}
                 </span>
               )}
@@ -1122,15 +1119,15 @@ export default function Admin1Page({ fullName, onLogout }: Admin1PageProps) {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-            <User size={13} className="text-red-500" />
+          <div className="hidden sm:flex items-center gap-2 text-xs text-[#0F172A] bg-[#F1F5F9] px-3 py-1.5 rounded-xl border border-[#CBD5E1] whitespace-nowrap">
+            <User size={13} className="text-red-600 shrink-0" />
             <span className="font-semibold">{fullName}</span>
-            <span className="text-[9px] text-slate-500 font-mono">(Admin 1)</span>
+            <span className="text-[9px] text-slate-600 font-mono">(Admin 1)</span>
           </div>
           <button
             id="logout-button"
             onClick={onLogout}
-            className="flex items-center gap-1 text-xs font-bold bg-red-950/60 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-xl border border-red-900/40 transition-all duration-150 cursor-pointer"
+            className="flex items-center gap-1 text-xs font-bold bg-[#F1F5F9] hover:bg-red-50 text-[#0F172A] hover:text-red-700 px-3 py-1.5 rounded-xl border border-[#CBD5E1] hover:border-red-300 transition-all duration-150 cursor-pointer whitespace-nowrap"
           >
             <LogOut size={13} />
             Quitter

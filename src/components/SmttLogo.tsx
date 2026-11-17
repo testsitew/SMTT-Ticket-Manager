@@ -7,17 +7,17 @@ interface SmttLogoProps {
 
 /**
  * Logo SMTT vectoriel haute définition sur fond transparent :
- * - Lettres S, M et dernier T en blanc pur (#FFFFFF) pour une lisibilité optimale sur fond sombre / bleu marine.
+ * - Lettres S, M et dernier T en noir/anthracite d'origine (#111827) pour une lisibilité optimale sur fond blanc.
  * - T stylisé et arc supérieur en rouge/corail d'origine (#E63946).
  */
-export default function SmttLogo({ className = '', height = 34 }: SmttLogoProps) {
+export default function SmttLogo({ className = '', height = 36 }: SmttLogoProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 162 54"
+      viewBox="8 5 145 46"
       height={height}
       style={{ height: `${height}px`, width: 'auto' }}
-      className={`shrink-0 select-none ${className}`}
+      className={`block shrink-0 select-none ${className}`}
       role="img"
       aria-label="Logo SMTT"
       fill="none"
@@ -31,7 +31,7 @@ export default function SmttLogo({ className = '', height = 34 }: SmttLogoProps)
       {/* Lettre S */}
       <path
         d="M 30.5 23.2 C 28.4 20.5, 24.6 19.6, 20.8 19.6 C 15.2 19.6, 11.6 22.4, 11.6 26.6 C 11.6 31.1, 15.8 32.7, 21.4 33.9 C 27.2 35.1, 31.2 36.8, 31.2 41.6 C 31.2 46.1, 27.2 48.6, 21.4 48.6 C 16.5 48.6, 12.6 47.0, 10.6 44.2"
-        stroke="#FFFFFF"
+        stroke="#111827"
         strokeWidth="3.5"
         strokeLinecap="butt"
         fill="none"
@@ -40,7 +40,7 @@ export default function SmttLogo({ className = '', height = 34 }: SmttLogoProps)
       {/* Lettre M */}
       <path
         d="M 45.5 48.4 L 45.5 20.4 L 61.5 45.8 L 77.5 20.4 L 77.5 48.4"
-        stroke="#FFFFFF"
+        stroke="#111827"
         strokeWidth="3.5"
         strokeLinejoin="bevel"
         strokeLinecap="butt"
@@ -53,10 +53,10 @@ export default function SmttLogo({ className = '', height = 34 }: SmttLogoProps)
         fill="#E63946"
       />
 
-      {/* Dernier T en blanc */}
+      {/* Dernier T en noir/anthracite */}
       <path
         d="M 122.5 21.4 L 151.5 21.4 M 137.0 21.4 L 137.0 48.4"
-        stroke="#FFFFFF"
+        stroke="#111827"
         strokeWidth="3.6"
         strokeLinecap="butt"
         fill="none"

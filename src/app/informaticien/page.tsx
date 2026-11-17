@@ -125,22 +125,24 @@ export default function InformaticienPage({ onLogout }: InformaticienPageProps) 
   return (
     <div id="user-manager-layout" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Top Navbar */}
-      <nav id="top-navbar" className="bg-blue-900 border-b border-blue-800 px-6 py-4 flex items-center justify-between shadow-md">
-        <div id="navbar-brand" className="flex items-center gap-3">
-          <SmttLogo height={34} />
-          <span className="font-bold text-xl tracking-wider text-white">SMTT B2B</span>
-          <span className="text-blue-300 font-medium">|</span>
-          <span className="text-blue-100 font-light text-sm tracking-wide">Ticket Manager</span>
+      <nav id="top-navbar" className="w-full bg-white border-b border-slate-200 px-6 py-3.5 grid grid-cols-3 items-center shadow-sm">
+        <div id="navbar-brand" className="flex items-center justify-start">
+          <SmttLogo height={36} />
         </div>
-        <div id="navbar-actions" className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-blue-200 bg-blue-950/50 px-3 py-1.5 rounded-xl border border-blue-800">
-            <User size={16} className="text-orange-500" />
-            <span className="font-semibold text-white">Informaticien (it)</span>
+        <div id="navbar-title" className="flex items-center justify-center gap-2 whitespace-nowrap">
+          <span className="font-bold text-lg sm:text-xl tracking-wider text-[#1E3A8A]">SMTT B2B</span>
+          <span className="text-slate-300 font-medium">|</span>
+          <span className="text-[#0F172A] font-medium text-xs sm:text-sm tracking-wide">Ticket Manager</span>
+        </div>
+        <div id="navbar-actions" className="flex items-center justify-end gap-2 sm:gap-3">
+          <div className="hidden sm:flex items-center gap-2 text-xs sm:text-sm text-[#0F172A] bg-[#F1F5F9] px-3 py-1.5 rounded-xl border border-[#CBD5E1] whitespace-nowrap">
+            <User size={16} className="text-orange-600 shrink-0" />
+            <span className="font-semibold text-[#0F172A]">Informaticien (it)</span>
           </div>
           <button
             id="logout-btn"
             onClick={onLogout}
-            className="flex items-center gap-2 text-xs font-semibold bg-red-900/60 hover:bg-red-800 text-red-200 px-3 py-1.5 rounded-xl border border-red-700/50 transition-colors cursor-pointer"
+            className="flex items-center gap-2 text-xs font-semibold bg-[#F1F5F9] hover:bg-red-50 text-[#0F172A] hover:text-red-700 px-3 py-1.5 rounded-xl border border-[#CBD5E1] hover:border-red-300 transition-colors cursor-pointer whitespace-nowrap"
           >
             <LogOut size={14} />
             Déconnexion
