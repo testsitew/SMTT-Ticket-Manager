@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="280" height="80">
+  <g fill="#E2001A">
+    <!-- 7 interconnected red circles -->
+    <circle cx="28" cy="28" r="24" />
+    <circle cx="64" cy="28" r="24" />
+    <circle cx="100" cy="28" r="24" />
+    <circle cx="136" cy="28" r="24" />
+    <circle cx="172" cy="28" r="24" />
+    <circle cx="208" cy="28" r="24" />
+    <circle cx="244" cy="28" r="24" />
+  </g>
+  <!-- White text 'ooredoo' inside circles -->
+  <g fill="#FFFFFF" font-family="'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="28" text-anchor="middle" dominant-baseline="central">
+    <text x="28" y="27">o</text>
+    <text x="64" y="27">o</text>
+    <text x="100" y="27">r</text>
+    <text x="136" y="27">e</text>
+    <text x="172" y="27">d</text>
+    <text x="208" y="27">o</text>
+    <text x="244" y="27">o</text>
+  </g>
+  <!-- 'business' text in grey underneath aligned to the right -->
+  <text x="248" y="70" fill="#71717A" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="24" letter-spacing="1" text-anchor="end">business</text>
+</svg>

@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+.slide-preview-zone {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 10px !important;
+  height: calc(100vh - 80px) !important; /* Prend toute la hauteur restante de l'écran */
+  overflow: hidden !important;
+}
+
+.rapport-slide-preview {
+  width: 100% !important;
+  max-width: 800px !important; /* Taille agrandie pour plus de confort visuel */
+  aspect-ratio: 16 / 9 !important;
+  height: auto !important;
+  margin: 0 auto 20px auto !important;
+  transform: none !important; /* Supprime les anciens scale qui coupaient le contenu */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.slide-wrapper {
+  display: contents !important; /* Supprime l'effet restrictif et le scaling de la slide-wrapper */
+}
+
+/* Réduction proportionnelle de la taille globale des polices internes et des cadres */
+.rapport-slide-preview * {
+  font-size: 11pt !important;
+  line-height: 1.15 !important;
+}
+
+.rapport-slide-preview .group\/canvas-slot {
+  height: 110px !important;
+  min-height: 110px !important;
+  padding: 6px !important;
+  border-width: 2px !important;
+}
+
+.rapport-slide-preview .group\/canvas-slot div {
+  min-height: unset !important;
+}
+
+.rapport-slide-preview h2 {
+  font-size: 14pt !important;
+  line-height: 1.2 !important;
+}
+
+.rapport-slide-preview h3, 
+.rapport-slide-preview .text-lg, 
+.rapport-slide-preview .text-xl, 
+.rapport-slide-preview .text-2xl, 
+.rapport-slide-preview .text-3xl {
+  font-size: 12pt !important;
+}
+
+.rapport-slide-preview p, 
+.rapport-slide-preview span, 
+.rapport-slide-preview label,
+.rapport-slide-preview button {
+  font-size: 10pt !important;
+}
+
+/* Ajustement des ronds rouges de la bordure de la page de garde */
+.rapport-slide-preview div[style*="translateX"] {
+  width: 16px !important;
+  height: 16px !important;
+}
+
