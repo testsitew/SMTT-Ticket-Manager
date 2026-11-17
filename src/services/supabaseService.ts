@@ -292,7 +292,7 @@ export async function updateTicketB2CPlanificationAndStatut(
   ticketId: string,
   updates: { date_planification?: string | null; statut?: string }
 ): Promise<TicketB2CRecord | null> {
-  if (!supabase || !isSupabaseConfigured) return null;
+  if (!supabase || !isSupabaseConfigured || !isUuid(ticketId)) return null;
 
   const { data, error } = await supabase
     .from('tickets_b2c')
@@ -308,7 +308,20 @@ export async function updateTicketB2CPlanificationAndStatut(
 }
 
 export async function deleteTicketB2C(ticketId: string): Promise<void> {
-  if (!supabase || !isSupabaseConfigured) return;
+  if (!supabase || !isSupabaseConfigured || !isUuid(ticketId)) return;
+
+  const { data: linkedReports } = await supabase
+    .from('as_built_reports')
+    .select('id')
+    .eq('ticket_id', ticketId);
+
+  const reportIds = (linkedReports || []).map((r: any) => r.id).filter(Boolean);
+  if (reportIds.length > 0) {
+    await supabase.from('report_photos').delete().in('report_id', reportIds);
+    await supabase.from('as_built_reports').delete().in('id', reportIds);
+    await cleanupStorageFolderForReports(reportIds);
+  }
+
   const { error } = await supabase.from('tickets_b2c').delete().eq('id', ticketId);
   if (error) {
     throw new Error(error.message);
@@ -536,7 +549,7 @@ export async function deleteSlidePhotoFromDatabase(
   reportId: string,
   slideNumber: number
 ): Promise<void> {
-  if (!supabase || !isSupabaseConfigured) return;
+  if (!supabase || !isSupabaseConfigured || !isUuid(reportId)) return;
 
   const { error } = await supabase
     .from('report_photos')
@@ -602,7 +615,7 @@ export async function uploadAttestationSlide9ToStorage(params: {
 export async function clearAttestationSlide9InDatabase(
   reportId: string
 ): Promise<void> {
-  if (!supabase || !isSupabaseConfigured) return;
+  if (!supabase || !isSupabaseConfigured || !isUuid(reportId)) return;
 
   const { error } = await supabase
     .from('as_built_reports')
@@ -617,7 +630,7 @@ export async function clearAttestationSlide9InDatabase(
 export async function submitAsBuiltReportToAdmin(
   reportId: string
 ): Promise<void> {
-  if (!supabase || !isSupabaseConfigured) return;
+  if (!supabase || !isSupabaseConfigured || !isUuid(reportId)) return;
 
   const { error } = await supabase
     .from('as_built_reports')
@@ -632,7 +645,7 @@ export async function submitAsBuiltReportToAdmin(
 export async function validateAsBuiltReportByAdmin(
   reportId: string
 ): Promise<void> {
-  if (!supabase || !isSupabaseConfigured) return;
+  if (!supabase || !isSupabaseConfigured || !isUuid(reportId)) return;
 
   const { error } = await supabase
     .from('as_built_reports')

@@ -586,7 +586,7 @@ export default function Admin1Page({ fullName, onLogout }: Admin1PageProps) {
 
   const confirmDelete = async () => {
     if (ticketToDelete) {
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && isUuid(ticketToDelete)) {
         try {
           await deleteTicketB2C(ticketToDelete);
         } catch (err) {
