@@ -669,3 +669,173 @@ export function subscribeAsBuiltRealtime(onUpdate: () => void): () => void {
     supabase?.removeChannel(channel);
   };
 }
+
+async function cleanupStorageFolderForReports(reportIds: string[]): Promise<void> {
+  if (!supabase || reportIds.length === 0) return;
+  for (const repId of reportIds) {
+    try {
+      const { data: files } = await supabase.storage
+        .from('as-built-files')
+        .list(`reports/${repId}`);
+      if (files && files.length > 0) {
+        const paths = files.map((f) => `reports/${repId}/${f.name}`);
+        await supabase.storage.from('as-built-files').remove(paths);
+      }
+    } catch {
+      // Best-effort storage cleanup; DB deletion must still proceed
+    }
+  }
+}
+
+export async function deleteGcReportAndTicketFromSupabase(params: {
+  reportId?: string;
+  studyId?: string;
+  codeSiteClient?: string;
+  ticketId?: string | null;
+}): Promise<void> {
+  if (!supabase || !isSupabaseConfigured) return;
+
+  const matchedReports: Array<{
+    id: string;
+    ticket_id?: string | null;
+    type_rapport?: string | null;
+  }> = [];
+
+  if (params.reportId && isUuid(params.reportId)) {
+    const { data } = await supabase
+      .from('as_built_reports')
+      .select('id, ticket_id, type_rapport')
+      .eq('id', params.reportId);
+    if (data) matchedReports.push(...(data as any[]));
+  }
+
+  if (params.studyId) {
+    const { data } = await supabase
+      .from('as_built_reports')
+      .select('id, ticket_id, type_rapport')
+      .eq('study_id', params.studyId);
+    if (data) {
+      (data as any[])
+        .filter((r) => (r.type_rapport || 'GC').toUpperCase() !== 'FH')
+        .forEach((r) => {
+          if (!matchedReports.some((m) => m.id === r.id)) matchedReports.push(r);
+        });
+    }
+  }
+
+  if (params.codeSiteClient) {
+    const { data } = await supabase
+      .from('as_built_reports')
+      .select('id, ticket_id, type_rapport')
+      .eq('code_site_client', params.codeSiteClient);
+    if (data) {
+      (data as any[])
+        .filter((r) => (r.type_rapport || 'GC').toUpperCase() !== 'FH')
+        .forEach((r) => {
+          if (!matchedReports.some((m) => m.id === r.id)) matchedReports.push(r);
+        });
+    }
+  }
+
+  const reportIds = Array.from(
+    new Set(matchedReports.map((r) => r.id).filter(Boolean))
+  );
+
+  const ticketIds = Array.from(
+    new Set(
+      [
+        params.ticketId,
+        params.studyId && isUuid(params.studyId) ? params.studyId : null,
+        ...matchedReports.map((r) => r.ticket_id),
+      ].filter((id): id is string => Boolean(id && isUuid(id)))
+    )
+  );
+
+  if (reportIds.length > 0) {
+    const { error: photosErr } = await supabase
+      .from('report_photos')
+      .delete()
+      .in('report_id', reportIds);
+    if (photosErr) {
+      throw new Error(photosErr.message);
+    }
+
+    const { error: repErr } = await supabase
+      .from('as_built_reports')
+      .delete()
+      .in('id', reportIds);
+    if (repErr) {
+      throw new Error(repErr.message);
+    }
+
+    await cleanupStorageFolderForReports(reportIds);
+  }
+
+  if (ticketIds.length > 0) {
+    const { error: tktErr } = await supabase
+      .from('tickets_b2c')
+      .delete()
+      .in('id', ticketIds);
+    if (tktErr) {
+      throw new Error(tktErr.message);
+    }
+  }
+}
+
+export async function clearAllGcReportsFromSupabase(): Promise<void> {
+  if (!supabase || !isSupabaseConfigured) return;
+
+  const { data: allReports, error: fetchErr } = await supabase
+    .from('as_built_reports')
+    .select('id, ticket_id, study_id, code_site_client, type_rapport');
+
+  if (fetchErr) {
+    throw new Error(fetchErr.message);
+  }
+
+  const gcReports = (allReports || []).filter(
+    (r: any) => (r.type_rapport || 'GC').toUpperCase() !== 'FH'
+  );
+
+  const reportIds: string[] = Array.from(
+    new Set(gcReports.map((r: any) => r.id).filter(Boolean))
+  );
+
+  const linkedTicketIds: string[] = Array.from(
+    new Set(
+      gcReports
+        .flatMap((r: any) => [r.ticket_id, isUuid(r.study_id) ? r.study_id : null])
+        .filter((id: any): id is string => Boolean(id && isUuid(id)))
+    )
+  );
+
+  if (reportIds.length > 0) {
+    const { error: photosErr } = await supabase
+      .from('report_photos')
+      .delete()
+      .in('report_id', reportIds);
+    if (photosErr) {
+      throw new Error(photosErr.message);
+    }
+
+    const { error: repErr } = await supabase
+      .from('as_built_reports')
+      .delete()
+      .in('id', reportIds);
+    if (repErr) {
+      throw new Error(repErr.message);
+    }
+
+    await cleanupStorageFolderForReports(reportIds);
+  }
+
+  if (linkedTicketIds.length > 0) {
+    const { error: tktErr } = await supabase
+      .from('tickets_b2c')
+      .delete()
+      .in('id', linkedTicketIds);
+    if (tktErr) {
+      throw new Error(tktErr.message);
+    }
+  }
+}

@@ -62,6 +62,8 @@ import { TravauxGcPage } from './TravauxGcPage';
 import { ProfilBlock } from './ProfilBlock';
 import { AsBuiltPhotoModule } from './AsBuiltPhotoModule';
 import { OOREDOO_BUSINESS_LOGO } from '../assets/logo';
+import { isSupabaseConfigured } from '../lib/supabase.js';
+import { ensureAsBuiltReport } from '../services/supabaseService';
 
 interface EtudeRFILossModuleProps {
   currentUserRole: string;
@@ -3357,7 +3359,7 @@ export default function EtudeRFILossModule({ currentUserRole, currentUserName }:
     }
   };
 
-  const handleConfirmDispatch = () => {
+  const handleConfirmDispatch = async () => {
     const uniqueChefs = Array.from(new Set(dispatchChefs.map(c => c.trim()).filter(Boolean)));
     if (!dispatchStudyId) {
       alert("Veuillez sélectionner une étude dans la base de données.");
@@ -3371,20 +3373,58 @@ export default function EtudeRFILossModule({ currentUserRole, currentUserName }:
     const targetStudy = studies.find(s => s.id === dispatchStudyId);
     if (!targetStudy) return;
 
+    let supabaseReportId = targetStudy.supabaseReportId || targetStudy.asBuiltData?.supabaseReportId;
+    if (isSupabaseConfigured) {
+      try {
+        supabaseReportId = await ensureAsBuiltReport({
+          existingReportId: supabaseReportId,
+          studyId: targetStudy.id,
+          typeRapport: 'GC',
+          nomSiteClient: targetStudy.asBuiltData?.nomSiteClient || targetStudy.site,
+          codeSiteClient: targetStudy.asBuiltData?.codeSiteClient || targetStudy.id,
+          nomSousTraitant: uniqueChefs.join(', '),
+          dateRealisation: dispatchDate,
+        });
+      } catch (err) {
+        console.error("Erreur sync Dispatching GC Supabase:", err);
+      }
+    }
+
     const updatedStudies = studies.map(s => {
       if (s.id === dispatchStudyId) {
         return {
           ...s,
+          supabaseReportId,
           chefsEquipe: uniqueChefs,
           dateAffectation: dispatchDate,
           datePlanification: dispatchDate,
-          status: 'Affecté' as const
+          status: 'Affecté' as const,
+          asBuiltData: s.asBuiltData ? { ...s.asBuiltData, supabaseReportId } : s.asBuiltData,
         };
       }
       return s;
     });
 
     saveStudies(updatedStudies);
+
+    // Synchroniser vers le module Génie Civil (smtt_gc_studies)
+    try {
+      const dispatchedGcStudy = updatedStudies.find(s => s.id === dispatchStudyId);
+      if (dispatchedGcStudy) {
+        const storedGc = localStorage.getItem('smtt_gc_studies');
+        const gcList: EtudeRFILoss[] = storedGc ? JSON.parse(storedGc) : [];
+        const existsIdx = Array.isArray(gcList) ? gcList.findIndex(g => g.id === dispatchedGcStudy.id) : -1;
+        const nextGc = Array.isArray(gcList) ? [...gcList] : [];
+        if (existsIdx >= 0) {
+          nextGc[existsIdx] = dispatchedGcStudy;
+        } else {
+          nextGc.unshift(dispatchedGcStudy);
+        }
+        localStorage.setItem('smtt_gc_studies', JSON.stringify(nextGc));
+      }
+    } catch (gcErr) {
+      console.error("Erreur synchronisation smtt_gc_studies", gcErr);
+    }
 
     // Envoi de la notification / ordre de mission
     try {

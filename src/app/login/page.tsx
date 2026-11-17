@@ -140,7 +140,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   type={isSupabaseConfigured ? 'email' : 'text'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={isSupabaseConfigured ? 'utilisateur@smtt.tn' : 'Email ou it'}
+                  placeholder="Email professionnel (ex: nom@smtt.tn)"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 />
               </div>
@@ -190,13 +190,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               )}
             </button>
           </form>
-
-          {!isSupabaseConfigured && (
-            <div className="mt-6 pt-5 border-t border-slate-800 text-[11px] text-slate-500 space-y-1">
-              <p className="font-semibold text-slate-400">Accès local :</p>
-              <p>• Compte Informaticien : <span className="font-mono text-slate-300 bg-slate-950 px-1 py-0.5 rounded">it</span> / <span className="font-mono text-slate-300 bg-slate-950 px-1 py-0.5 rounded">it</span></p>
-            </div>
-          )}
         </motion.div>
       </div>
 

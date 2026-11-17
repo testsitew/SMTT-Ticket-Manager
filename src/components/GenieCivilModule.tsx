@@ -40,6 +40,8 @@ import {
   clearAttestationSlide9InDatabase,
   submitAsBuiltReportToAdmin,
   validateAsBuiltReportByAdmin,
+  deleteGcReportAndTicketFromSupabase,
+  clearAllGcReportsFromSupabase,
   subscribeAsBuiltRealtime,
 } from '../services/supabaseService';
 
@@ -64,77 +66,7 @@ interface FeedbackState {
   message: string;
 }
 
-const DEFAULT_SEED_GC_STUDIES: EtudeRFILoss[] = [
-  {
-    id: 'RFI-8321',
-    site: 'SIL_8321 Ooredoo Business',
-    contactClient: {
-      nom: 'Ooredoo',
-      tel: '55 123 456',
-      mail: 'slah.belhadj@ooredoo.tn'
-    },
-    contactSMTT: 'Molka Miladi - 20736600',
-    typeMission: 'Accès FH -> Survey -> Étude LOS + APS & Massif GC',
-    gps: {
-      latitude: '36.806482',
-      longitude: '10.181532',
-      cgps: '36.806482, 10.181532'
-    },
-    superviseurLOS: 'Karim Zouaoui',
-    maintenancier: 'SMTT',
-    processusAccesFH: 'Accès FH -> Survey -> Étude LOS + APS',
-    codesSitesDistants: ['TUN_2041', 'TUN_1080', 'TUN_3012'],
-    dateCreation: '2026-09-01',
-    action: 'Survey & Étude LOS + GC Massif',
-    dateAffectation: '2026-09-02',
-    datePlanification: '2026-09-05',
-    chefsEquipe: ['Sami K.', 'Amine M.'],
-    status: 'Affecté',
-    asBuiltData: {
-      nomSiteClient: 'SIL_8321 Ooredoo Business',
-      codeSiteClient: 'SIL_8321',
-      nomSousTraitant: 'SMTT',
-      dateRealisation: '2026-09-05',
-      status: 'DRAFT',
-      workflowStep: 2,
-      statusValidationAdmin: 'En attente',
-      photos: []
-    }
-  },
-  {
-    id: 'RFI-10324',
-    site: 'Ooredoo Lac 2 Tower',
-    contactClient: {
-      nom: 'Ooredoo',
-      tel: '98 765 432',
-      mail: 'aida.bensalem@ooredoo.tn'
-    },
-    contactSMTT: 'Molka Miladi - 20736600',
-    typeMission: 'Accès FH -> Survey -> Étude LOS + Massif GC',
-    gps: {
-      latitude: '36.839210',
-      longitude: '10.237140',
-      cgps: '36.839210, 10.237140'
-    },
-    codesSitesDistants: ['TUN_1001', 'LAC_2004', 'CAR_3002'],
-    dateCreation: '2026-09-04',
-    action: 'Audit GC & Pose Mât FH',
-    dateAffectation: '2026-09-04',
-    datePlanification: '2026-09-10',
-    chefsEquipe: ['Hassen T.', 'Mohamed A.'],
-    status: 'Terminé',
-    asBuiltData: {
-      nomSiteClient: 'Ooredoo Lac 2 Tower',
-      codeSiteClient: 'LAC_10324',
-      nomSousTraitant: 'SMTT',
-      dateRealisation: '2026-09-10',
-      status: 'DRAFT',
-      workflowStep: 2,
-      statusValidationAdmin: 'En attente',
-      photos: []
-    }
-  }
-];
+const GC_STORAGE_KEY = 'smtt_gc_studies';
 
 function buildNormalizedPhotos(existingPhotos?: AsBuiltStepPhoto[]): AsBuiltStepPhoto[] {
   return DEFAULT_ASBUILT_STEPS.map((defaultStep) => {
@@ -263,15 +195,25 @@ export default function GenieCivilModule({
 
   // Dispatching Modal State (Admin)
   const [showDispatchModal, setShowDispatchModal] = useState(false);
-  const [dispatchStudyId, setDispatchStudyId] = useState<string>('');
+  const [dispatchStudyId, setDispatchStudyId] = useState<string>('__NEW__');
+  const [dispatchNewSiteName, setDispatchNewSiteName] = useState<string>('');
+  const [dispatchNewCodeSite, setDispatchNewCodeSite] = useState<string>('');
+  const [dispatchNewClient, setDispatchNewClient] = useState<string>('Ooredoo');
+  const [dispatchNewCgps, setDispatchNewCgps] = useState<string>('');
   const [dispatchDate, setDispatchDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
   const [dispatchChefs, setDispatchChefs] = useState<string[]>(['']);
   const [dispatchNotes, setDispatchNotes] = useState<string>('');
+  const [isDispatching, setIsDispatching] = useState<boolean>(false);
 
   // Consulter GC Details Modal (Admin)
   const [selectedGcReportStudy, setSelectedGcReportStudy] = useState<EtudeRFILoss | null>(null);
+
+  // Delete Confirmation Modals (Single Ticket & Clear All GC)
+  const [studyToDelete, setStudyToDelete] = useState<EtudeRFILoss | null>(null);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState<boolean>(false);
+  const [isDeletingGc, setIsDeletingGc] = useState<boolean>(false);
 
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -291,18 +233,18 @@ export default function GenieCivilModule({
     };
   }, []);
 
-  // Load studies from localStorage + Supabase Realtime (as_built_reports & report_photos)
+  // Load GC studies from localStorage (empty by default, no mock seeds) + Supabase Realtime
   useEffect(() => {
-    let baseStudies: EtudeRFILoss[] = DEFAULT_SEED_GC_STUDIES;
     try {
-      const storedStudies = localStorage.getItem('smtt_rfi_studies');
-      if (storedStudies) {
-        const parsed = JSON.parse(storedStudies);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          baseStudies = parsed;
+      const storedGcStudies = localStorage.getItem(GC_STORAGE_KEY);
+      if (storedGcStudies) {
+        const parsed = JSON.parse(storedGcStudies);
+        if (Array.isArray(parsed)) {
+          setStudies(parsed);
         }
+      } else {
+        setStudies([]);
       }
-      setStudies(baseStudies);
 
       const storedUsers = localStorage.getItem('smtt_users');
       if (storedUsers) {
@@ -335,7 +277,23 @@ export default function GenieCivilModule({
       console.error('Erreur de chargement des études GC:', e);
     }
 
-    if (!isSupabaseConfigured) return;
+    const handleStorageSync = (e: StorageEvent) => {
+      if (e.key === GC_STORAGE_KEY) {
+        try {
+          const parsed = JSON.parse(e.newValue || '[]');
+          setStudies(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          setStudies([]);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageSync);
+
+    if (!isSupabaseConfigured) {
+      return () => {
+        window.removeEventListener('storage', handleStorageSync);
+      };
+    }
 
     const syncFromSupabase = async () => {
       try {
@@ -359,12 +317,17 @@ export default function GenieCivilModule({
           }
         }
 
-        if (reports.length === 0) return;
+        const gcReports = reports.filter(
+          (rep) => (rep.type_rapport || 'GC').toUpperCase() !== 'FH'
+        );
 
         setStudies((prevStudies) => {
-          const next = [...prevStudies];
-          reports.forEach((rep) => {
-            const matchIdx = next.findIndex(
+          // Keep purely local unsynced items only if they were never linked to a deleted Supabase record
+          const localOnly = prevStudies.filter((s) => !s.supabaseReportId);
+          const next: EtudeRFILoss[] = [...localOnly];
+
+          gcReports.forEach((rep) => {
+            const existingFromPrev = prevStudies.find(
               (s) =>
                 s.supabaseReportId === rep.id ||
                 (rep.study_id && s.id === rep.study_id) ||
@@ -373,8 +336,19 @@ export default function GenieCivilModule({
                     s.id === rep.code_site_client))
             );
 
+            const matchInNextIdx = next.findIndex(
+              (s) =>
+                s.supabaseReportId === rep.id ||
+                (rep.study_id && s.id === rep.study_id) ||
+                (rep.code_site_client &&
+                  (s.asBuiltData?.codeSiteClient === rep.code_site_client ||
+                    s.id === rep.code_site_client))
+            );
+
+            const baseTarget = existingFromPrev || (matchInNextIdx >= 0 ? next[matchInNextIdx] : undefined);
+
             const remotePhotos = buildNormalizedPhotos(
-              matchIdx >= 0 ? next[matchIdx].asBuiltData?.photos : []
+              baseTarget?.asBuiltData?.photos || []
             ).map((step) => {
               const slideNumber = step.stepNumber + 1;
               const matchPhoto = rep.report_photos?.find(
@@ -400,43 +374,48 @@ export default function GenieCivilModule({
                 ? "Soumis à l'admin"
                 : 'En attente';
 
-            if (matchIdx >= 0) {
-              const target = next[matchIdx];
+            if (baseTarget) {
               const mergedAsBuilt: AsBuiltData = {
-                ...getNormalizedAsBuiltData(target, currentUserName),
+                ...getNormalizedAsBuiltData(baseTarget, currentUserName),
                 supabaseReportId: rep.id,
                 nomSiteClient:
                   rep.nom_site_client ||
-                  target.asBuiltData?.nomSiteClient ||
-                  target.site,
+                  baseTarget.asBuiltData?.nomSiteClient ||
+                  baseTarget.site,
                 codeSiteClient:
                   rep.code_site_client ||
-                  target.asBuiltData?.codeSiteClient ||
-                  target.id,
+                  baseTarget.asBuiltData?.codeSiteClient ||
+                  baseTarget.id,
                 nomSousTraitant:
                   rep.nom_sous_traitant ||
-                  target.asBuiltData?.nomSousTraitant ||
+                  baseTarget.asBuiltData?.nomSousTraitant ||
                   'SMTT',
                 dateRealisation:
                   rep.date_realisation ||
-                  target.asBuiltData?.dateRealisation ||
+                  baseTarget.asBuiltData?.dateRealisation ||
                   new Date().toISOString().split('T')[0],
                 photos: remotePhotos,
                 attestationImageUrl:
                   rep.attestation_slide9_url ||
-                  target.asBuiltData?.attestationImageUrl,
+                  baseTarget.asBuiltData?.attestationImageUrl,
                 attestationScellementUrl:
                   rep.attestation_slide9_url ||
-                  target.asBuiltData?.attestationScellementUrl,
+                  baseTarget.asBuiltData?.attestationScellementUrl,
                 status: mappedStatus,
                 statusValidationAdmin: mappedAdminStatus,
                 workflowStep: mappedStatus === 'DRAFT' ? 2 : 3,
               };
-              next[matchIdx] = {
-                ...target,
+              const mergedStudy: EtudeRFILoss = {
+                ...baseTarget,
                 supabaseReportId: rep.id,
                 asBuiltData: mergedAsBuilt,
               };
+
+              if (matchInNextIdx >= 0) {
+                next[matchInNextIdx] = mergedStudy;
+              } else {
+                next.push(mergedStudy);
+              }
             } else {
               next.unshift({
                 id: rep.study_id || rep.id,
@@ -474,6 +453,12 @@ export default function GenieCivilModule({
               });
             }
           });
+
+          try {
+            localStorage.setItem(GC_STORAGE_KEY, JSON.stringify(next));
+          } catch {
+            // ignore quota issues
+          }
           return next;
         });
       } catch (err) {
@@ -485,6 +470,7 @@ export default function GenieCivilModule({
     const unsub = subscribeAsBuiltRealtime(syncFromSupabase);
 
     return () => {
+      window.removeEventListener('storage', handleStorageSync);
       unsub();
     };
   }, [currentUserName]);
@@ -492,7 +478,7 @@ export default function GenieCivilModule({
   const saveStudies = (updated: EtudeRFILoss[]) => {
     setStudies(updated);
     try {
-      localStorage.setItem('smtt_rfi_studies', JSON.stringify(updated));
+      localStorage.setItem(GC_STORAGE_KEY, JSON.stringify(updated));
     } catch (e) {
       console.error('Erreur de sauvegarde études GC:', e);
     }
@@ -990,6 +976,114 @@ export default function GenieCivilModule({
     }
   };
 
+  // Delete single GC ticket/study (Supabase + localStorage)
+  const handleConfirmDeleteSingleStudy = async () => {
+    if (!studyToDelete) return;
+    setIsDeletingGc(true);
+    const target = studyToDelete;
+
+    try {
+      if (isSupabaseConfigured) {
+        await deleteGcReportAndTicketFromSupabase({
+          reportId:
+            target.supabaseReportId || target.asBuiltData?.supabaseReportId,
+          studyId: target.id,
+          codeSiteClient: target.asBuiltData?.codeSiteClient,
+        });
+      }
+
+      const updated = studies.filter((s) => s.id !== target.id);
+      saveStudies(updated);
+
+      // Clean up any localStorage remnants so it never reappears after refresh
+      try {
+        localStorage.removeItem(`rfi_report_${target.id}`);
+        const storedRfi = localStorage.getItem('smtt_rfi_studies');
+        if (storedRfi) {
+          const parsedRfi: EtudeRFILoss[] = JSON.parse(storedRfi);
+          if (Array.isArray(parsedRfi)) {
+            const filteredRfi = parsedRfi.filter((s) => s.id !== target.id);
+            localStorage.setItem('smtt_rfi_studies', JSON.stringify(filteredRfi));
+          }
+        }
+      } catch {
+        // ignore localStorage errors
+      }
+
+      if (selectedStudyId === target.id) {
+        setSelectedStudyId('');
+      }
+      if (selectedGcReportStudy?.id === target.id) {
+        setSelectedGcReportStudy(null);
+      }
+      setStudyToDelete(null);
+      showFeedback(
+        'success',
+        `Dossier Génie Civil "${target.site}" (${target.asBuiltData?.codeSiteClient || target.id}) supprimé définitivement.`
+      );
+    } catch (err: any) {
+      console.error('Erreur suppression dossier GC:', err);
+      showFeedback(
+        'error',
+        err?.message || 'Impossible de supprimer ce ticket Génie Civil dans Supabase.'
+      );
+    } finally {
+      setIsDeletingGc(false);
+    }
+  };
+
+  // Clear ALL GC tickets & reports (Admin only - Supabase + localStorage)
+  const handleConfirmClearAllGc = async () => {
+    setIsDeletingGc(true);
+    try {
+      if (isSupabaseConfigured) {
+        await clearAllGcReportsFromSupabase();
+      }
+
+      const deletedIds = new Set(studies.map((s) => s.id));
+      saveStudies([]);
+      setSelectedStudyId('');
+      setSelectedGcReportStudy(null);
+
+      try {
+        deletedIds.forEach((id) => localStorage.removeItem(`rfi_report_${id}`));
+        localStorage.removeItem('rfi_report_RFI-8321');
+        localStorage.removeItem('rfi_report_RFI-10324');
+        localStorage.setItem(GC_STORAGE_KEY, JSON.stringify([]));
+
+        const storedRfi = localStorage.getItem('smtt_rfi_studies');
+        if (storedRfi) {
+          const parsedRfi: EtudeRFILoss[] = JSON.parse(storedRfi);
+          if (Array.isArray(parsedRfi)) {
+            const cleanedRfi = parsedRfi.filter(
+              (s) =>
+                !deletedIds.has(s.id) &&
+                s.id !== 'RFI-8321' &&
+                s.id !== 'RFI-10324'
+            );
+            localStorage.setItem('smtt_rfi_studies', JSON.stringify(cleanedRfi));
+          }
+        }
+      } catch {
+        // ignore localStorage errors
+      }
+
+      setShowClearAllConfirm(false);
+      showFeedback(
+        'success',
+        'Tous les tickets et rapports Génie Civil ont été supprimés (application vierge).'
+      );
+    } catch (err: any) {
+      console.error('Erreur vidage complet GC:', err);
+      showFeedback(
+        'error',
+        err?.message || 'Erreur lors de la suppression globale Génie Civil dans Supabase.'
+      );
+    } finally {
+      setIsDeletingGc(false);
+    }
+  };
+
   // Open Dispatch Modal (Admin)
   const openDispatchModal = (studyToDispatch?: EtudeRFILoss) => {
     const target = studyToDispatch || activeStudy || validatedLosStudies[0] || studies[0];
@@ -1004,7 +1098,11 @@ export default function GenieCivilModule({
         target.chefsEquipe && target.chefsEquipe.length > 0 ? target.chefsEquipe : ['']
       );
     } else {
-      setDispatchStudyId('');
+      setDispatchStudyId('__NEW__');
+      setDispatchNewSiteName('');
+      setDispatchNewCodeSite('');
+      setDispatchNewClient('Ooredoo');
+      setDispatchNewCgps('');
       setDispatchDate(new Date().toISOString().split('T')[0]);
       setDispatchChefs(['']);
     }
@@ -1014,6 +1112,13 @@ export default function GenieCivilModule({
 
   const handleSelectStudyForDispatch = (studyId: string) => {
     setDispatchStudyId(studyId);
+    if (studyId === '__NEW__') {
+      setDispatchNewSiteName('');
+      setDispatchNewCodeSite('');
+      setDispatchNewClient('Ooredoo');
+      setDispatchNewCgps('');
+      return;
+    }
     const target = studies.find((s) => s.id === studyId);
     if (target) {
       setDispatchDate(
@@ -1027,12 +1132,12 @@ export default function GenieCivilModule({
     }
   };
 
-  const handleConfirmDispatch = () => {
-    const uniqueChefs = Array.from(
-      new Set(dispatchChefs.map((c) => c.trim()).filter(Boolean))
+  const handleConfirmDispatch = async () => {
+    const uniqueChefs: string[] = Array.from(
+      new Set<string>(dispatchChefs.map((c) => c.trim()).filter(Boolean))
     );
     if (!dispatchStudyId) {
-      showFeedback('warning', 'Veuillez sélectionner une étude dans la liste.');
+      showFeedback('warning', 'Veuillez sélectionner une étude ou créer un nouveau dossier GC.');
       return;
     }
     if (uniqueChefs.length === 0) {
@@ -1040,46 +1145,142 @@ export default function GenieCivilModule({
       return;
     }
 
-    const targetStudy = studies.find((s) => s.id === dispatchStudyId);
-    if (!targetStudy) return;
-
-    const updatedStudies = studies.map((s) =>
-      s.id === dispatchStudyId
-        ? {
-            ...s,
-            chefsEquipe: uniqueChefs,
-            dateAffectation: dispatchDate,
-            datePlanification: dispatchDate,
-            status: 'Affecté' as const,
-          }
-        : s
-    );
-
-    saveStudies(updatedStudies);
-
+    setIsDispatching(true);
     try {
-      const storedNotifs = localStorage.getItem('smtt_notifications');
-      const existingNotifs: AppNotification[] = storedNotifs ? JSON.parse(storedNotifs) : [];
-      const newNotif: AppNotification = {
-        id: `NOTIF-GC-${Date.now()}`,
-        type: 'info',
-        message: `🏗️ [Ordre de Mission Génie Civil] Mission "${targetStudy.site}" (${targetStudy.id}) affectée pour le ${dispatchDate} aux chefs GC : ${uniqueChefs.join(', ')}. ${dispatchNotes ? 'Consignes: ' + dispatchNotes : ''}`,
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        studyId: targetStudy.id,
-        senderName: currentUserName || currentUserRole || 'Admin SMTT',
-      };
-      localStorage.setItem('smtt_notifications', JSON.stringify([newNotif, ...existingNotifs]));
-      window.dispatchEvent(new Event('storage'));
-    } catch (e) {
-      console.error('Erreur notification dispatching GC', e);
-    }
+      let targetStudy: EtudeRFILoss | undefined;
+      let updatedStudies: EtudeRFILoss[] = [];
 
-    showFeedback(
-      'success',
-      `Mission "${targetStudy.site}" (${targetStudy.id}) affectée à ${uniqueChefs.join(', ')} pour le ${dispatchDate}.`
-    );
-    setShowDispatchModal(false);
+      if (dispatchStudyId === '__NEW__') {
+        const cleanSiteName = dispatchNewSiteName.trim();
+        const cleanCodeSite = dispatchNewCodeSite.trim().toUpperCase();
+        if (!cleanSiteName || !cleanCodeSite) {
+          showFeedback(
+            'warning',
+            'Veuillez saisir le Nom du site client et le Code site client.'
+          );
+          setIsDispatching(false);
+          return;
+        }
+
+        const newId = `GC-${Date.now().toString().slice(-6)}`;
+        let supabaseReportId: string | undefined;
+        if (isSupabaseConfigured) {
+          supabaseReportId = await ensureAsBuiltReport({
+            studyId: newId,
+            typeRapport: 'GC',
+            nomSiteClient: cleanSiteName,
+            codeSiteClient: cleanCodeSite,
+            nomSousTraitant: uniqueChefs.join(', '),
+            dateRealisation: dispatchDate,
+          });
+        }
+
+        const [latVal = '', longVal = ''] = dispatchNewCgps
+          .split(',')
+          .map((p) => p.trim());
+
+        targetStudy = {
+          id: newId,
+          supabaseReportId,
+          site: cleanSiteName,
+          contactClient: { nom: dispatchNewClient.trim() || 'Ooredoo', tel: '' },
+          gps: {
+            latitude: latVal,
+            longitude: longVal,
+            cgps: dispatchNewCgps.trim() || undefined,
+          },
+          codesSitesDistants: [],
+          dateCreation: new Date().toISOString().split('T')[0],
+          action: 'Travaux Génie Civil',
+          dateAffectation: dispatchDate,
+          datePlanification: dispatchDate,
+          chefsEquipe: uniqueChefs,
+          status: 'Affecté',
+          asBuiltData: {
+            supabaseReportId,
+            nomSiteClient: cleanSiteName,
+            codeSiteClient: cleanCodeSite,
+            nomSousTraitant: uniqueChefs.join(', '),
+            dateRealisation: dispatchDate,
+            status: 'DRAFT',
+            workflowStep: 2,
+            statusValidationAdmin: 'En attente',
+            photos: [],
+          },
+        };
+        updatedStudies = [targetStudy, ...studies];
+      } else {
+        targetStudy = studies.find((s) => s.id === dispatchStudyId);
+        if (!targetStudy) {
+          setIsDispatching(false);
+          return;
+        }
+
+        let supabaseReportId =
+          targetStudy.supabaseReportId || targetStudy.asBuiltData?.supabaseReportId;
+        if (isSupabaseConfigured) {
+          supabaseReportId = await ensureAsBuiltReport({
+            existingReportId: supabaseReportId,
+            studyId: targetStudy.id,
+            typeRapport: 'GC',
+            nomSiteClient: targetStudy.asBuiltData?.nomSiteClient || targetStudy.site,
+            codeSiteClient: targetStudy.asBuiltData?.codeSiteClient || targetStudy.id,
+            nomSousTraitant: uniqueChefs.join(', '),
+            dateRealisation: dispatchDate,
+          });
+        }
+
+        updatedStudies = studies.map((s) =>
+          s.id === dispatchStudyId
+            ? {
+                ...s,
+                supabaseReportId,
+                chefsEquipe: uniqueChefs,
+                dateAffectation: dispatchDate,
+                datePlanification: dispatchDate,
+                status: 'Affecté' as const,
+                asBuiltData: s.asBuiltData
+                  ? { ...s.asBuiltData, supabaseReportId }
+                  : s.asBuiltData,
+              }
+            : s
+        );
+      }
+
+      saveStudies(updatedStudies);
+      if (targetStudy) {
+        setSelectedStudyId(targetStudy.id);
+      }
+
+      try {
+        const storedNotifs = localStorage.getItem('smtt_notifications');
+        const existingNotifs: AppNotification[] = storedNotifs ? JSON.parse(storedNotifs) : [];
+        const newNotif: AppNotification = {
+          id: `NOTIF-GC-${Date.now()}`,
+          type: 'info',
+          message: `🏗️ [Ordre de Mission Génie Civil] Mission "${targetStudy.site}" (${targetStudy.asBuiltData?.codeSiteClient || targetStudy.id}) affectée pour le ${dispatchDate} aux chefs GC : ${uniqueChefs.join(', ')}. ${dispatchNotes ? 'Consignes: ' + dispatchNotes : ''}`,
+          timestamp: new Date().toISOString(),
+          isRead: false,
+          studyId: targetStudy.id,
+          senderName: currentUserName || currentUserRole || 'Admin SMTT',
+        };
+        localStorage.setItem('smtt_notifications', JSON.stringify([newNotif, ...existingNotifs]));
+        window.dispatchEvent(new Event('storage'));
+      } catch (e) {
+        console.error('Erreur notification dispatching GC', e);
+      }
+
+      showFeedback(
+        'success',
+        `Mission "${targetStudy.site}" (${targetStudy.asBuiltData?.codeSiteClient || targetStudy.id}) affectée à ${uniqueChefs.join(', ')} pour le ${dispatchDate}.`
+      );
+      setShowDispatchModal(false);
+    } catch (err: any) {
+      console.error('Erreur Dispatching GC:', err);
+      showFeedback('error', err?.message || 'Erreur lors du dispatching Génie Civil.');
+    } finally {
+      setIsDispatching(false);
+    }
   };
 
   const activeDispatchStudy = studies.find((s) => s.id === dispatchStudyId);
@@ -1160,6 +1361,16 @@ export default function GenieCivilModule({
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-8 pr-3 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500"
               />
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowClearAllConfirm(true)}
+              disabled={isDeletingGc || studies.length === 0}
+              className="px-3.5 py-2 rounded-xl bg-red-950/70 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-red-200 hover:text-white border border-red-800/70 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+              title="Supprimer tous les tickets et rapports Génie Civil"
+            >
+              <span>🗑️ Vider GC</span>
+            </button>
 
             {activeStudy && (
               <button
@@ -1248,12 +1459,20 @@ export default function GenieCivilModule({
               const clientName = study.contactClient?.nom || 'Ooredoo';
 
               return (
-                <button
+                <div
                   key={study.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     setSelectedStudyId(study.id);
                     setActiveSlideKey('page1_cover');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedStudyId(study.id);
+                      setActiveSlideKey('page1_cover');
+                    }
                   }}
                   className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between h-24 ${
                     isSelected
@@ -1265,11 +1484,27 @@ export default function GenieCivilModule({
                     <span className="font-mono text-orange-400 font-extrabold text-xs truncate">
                       {displayCode}
                     </span>
-                    <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-md shrink-0 ${statusInfo.badgeClass}`}
-                    >
-                      {statusInfo.label}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${statusInfo.badgeClass}`}
+                      >
+                        {statusInfo.label}
+                      </span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStudyToDelete(study);
+                          }}
+                          className="p-1 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-950/60 border border-transparent hover:border-red-900/50 transition-all cursor-pointer"
+                          title="Supprimer ce ticket Génie Civil"
+                          aria-label={`Supprimer le ticket ${displayCode}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="text-xs text-white font-bold truncate w-full">
@@ -1284,7 +1519,7 @@ export default function GenieCivilModule({
                       {uploadedCount}/7 Photos
                     </span>
                   </div>
-                </button>
+                </div>
               );
             })
           )}
@@ -2032,33 +2267,84 @@ export default function GenieCivilModule({
             </div>
 
             <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="block text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
                   <Building className="w-4 h-4 text-orange-400" />
-                  1. Sélectionner l&apos;Étude (Base LOS / Génie Civil)
+                  1. Sélectionner l&apos;Étude ou Créer un Dossier GC
                 </label>
                 <select
                   value={dispatchStudyId}
                   onChange={(e) => handleSelectStudyForDispatch(e.target.value)}
                   className="w-full px-4 py-3 border border-slate-700 rounded-xl text-sm font-bold text-white bg-slate-950 focus:border-orange-500 outline-none"
                 >
-                  <option value="">-- Choisir une étude --</option>
+                  <option value="__NEW__">➕ Créer un nouveau dossier / ticket GC</option>
                   {validatedLosStudies.map((st) => (
                     <option key={st.id} value={st.id}>
-                      {st.site} ({st.id}) - [{st.status}] - Chefs:{' '}
+                      {st.site} ({st.asBuiltData?.codeSiteClient || st.id}) - [{st.status}] - Chefs:{' '}
                       {st.chefsEquipe?.join(', ') || 'Non affecté'}
                     </option>
                   ))}
                 </select>
 
-                {activeDispatchStudy && (
+                {dispatchStudyId === '__NEW__' ? (
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block">
+                        Nom site client *
+                      </label>
+                      <input
+                        type="text"
+                        value={dispatchNewSiteName}
+                        onChange={(e) => setDispatchNewSiteName(e.target.value)}
+                        placeholder="Ex: Site Client Ooredoo..."
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-semibold focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block">
+                        Code site client *
+                      </label>
+                      <input
+                        type="text"
+                        value={dispatchNewCodeSite}
+                        onChange={(e) => setDispatchNewCodeSite(e.target.value)}
+                        placeholder="Ex: TUN_1045"
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-orange-400 font-mono font-bold focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block">
+                        Client
+                      </label>
+                      <input
+                        type="text"
+                        value={dispatchNewClient}
+                        onChange={(e) => setDispatchNewClient(e.target.value)}
+                        placeholder="Ooredoo"
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block">
+                        CGPS (Optionnel)
+                      </label>
+                      <input
+                        type="text"
+                        value={dispatchNewCgps}
+                        onChange={(e) => setDispatchNewCgps(e.target.value)}
+                        placeholder="36.8065, 10.1815"
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                ) : activeDispatchStudy ? (
                   <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="font-black text-white text-sm">
                         {activeDispatchStudy.site}
                       </span>
                       <span className="font-mono bg-orange-950 text-orange-400 border border-orange-900/40 font-bold px-2 py-0.5 rounded text-[10px]">
-                        {activeDispatchStudy.id}
+                        {activeDispatchStudy.asBuiltData?.codeSiteClient || activeDispatchStudy.id}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-slate-400">
@@ -2066,7 +2352,9 @@ export default function GenieCivilModule({
                         CGPS :{' '}
                         <strong className="text-slate-200">
                           {activeDispatchStudy.gps?.cgps ||
-                            `${activeDispatchStudy.gps?.latitude}, ${activeDispatchStudy.gps?.longitude}`}
+                            (activeDispatchStudy.gps?.latitude
+                              ? `${activeDispatchStudy.gps.latitude}, ${activeDispatchStudy.gps.longitude}`
+                              : 'Non renseigné')}
                         </strong>
                       </p>
                       <p>
@@ -2077,7 +2365,7 @@ export default function GenieCivilModule({
                       </p>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
 
               <div className="space-y-3 pt-4 border-t border-slate-800">
@@ -2197,14 +2485,126 @@ export default function GenieCivilModule({
               </button>
               <button
                 type="button"
+                disabled={isDispatching}
                 onClick={handleConfirmDispatch}
-                className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20 flex items-center gap-2 cursor-pointer active:scale-95"
+                className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white shadow-lg shadow-red-600/20 flex items-center gap-2 cursor-pointer active:scale-95"
               >
-                <Send className="w-4 h-4" />
+                {isDispatching ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
                 Valider &amp; Envoyer Ordre de Mission GC
               </button>
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* Modal Confirmation Suppression Individuelle Ticket GC */}
+      {studyToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-red-500">
+              <div className="p-3 bg-red-500/10 rounded-full border border-red-500/20">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                  Supprimer ce dossier GC ?
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Suppression définitive (Supabase + stockage local).
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Voulez-vous vraiment supprimer le ticket{' '}
+              <strong className="text-orange-400 font-mono">
+                {studyToDelete.asBuiltData?.codeSiteClient || studyToDelete.id}
+              </strong>{' '}
+              (<strong className="text-white">{studyToDelete.site}</strong>) ainsi que
+              ses photos et son rapport As-Built associés ?
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingGc}
+                onClick={() => setStudyToDelete(null)}
+                className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingGc}
+                onClick={handleConfirmDeleteSingleStudy}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeletingGc ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Confirmer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmation Vidage Complet GC ("🗑️ Vider GC") */}
+      {isAdmin && showClearAllConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-red-900/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-red-500">
+              <div className="p-3 bg-red-500/10 rounded-full border border-red-500/20">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                  Vider tous les dossiers Génie Civil ?
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Action irréversible sur Supabase et le stockage local.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Cette action va supprimer définitivement les{' '}
+              <strong className="text-white">{studies.length} dossier(s) GC</strong>,
+              tous les rapports As-Built Génie Civil, leurs photos terrain et les
+              tickets associés dans Supabase. L&apos;onglet Génie Civil sera totalement
+              vierge (<strong className="text-orange-400">0 dossier(s)</strong>).
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingGc}
+                onClick={() => setShowClearAllConfirm(false)}
+                className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingGc}
+                onClick={handleConfirmClearAllGc}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeletingGc ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Tout supprimer</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
