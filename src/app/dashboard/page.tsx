@@ -13,6 +13,7 @@ import {
   Terminal,
   Grid
 } from 'lucide-react';
+import SmttLogo from '../../components/SmttLogo.tsx';
 
 interface DashboardPageProps {
   role: string;
@@ -57,7 +58,8 @@ export default function DashboardPage({ role, fullName, onLogout }: DashboardPag
     <div id="dashboard-layout" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Top Navbar */}
       <nav id="top-navbar" className="bg-blue-900 border-b border-blue-800 px-6 py-4 flex items-center justify-between shadow-md">
-        <div id="navbar-brand" className="flex items-center gap-2">
+        <div id="navbar-brand" className="flex items-center gap-3">
+          <SmttLogo height={34} />
           <span className="font-bold text-xl tracking-wider text-white">SMTT</span>
           <span className="text-blue-300 font-medium">|</span>
           <span className="text-blue-100 font-light text-sm tracking-wide">Ticket Manager</span>

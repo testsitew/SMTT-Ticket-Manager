@@ -30,6 +30,7 @@ import {
 import EtudeRFILossModule from '../../components/EtudeRFILoss.tsx';
 import GenieCivilModule from '../../components/GenieCivilModule.tsx';
 import AdminUsersPanel from '../../components/AdminUsersPanel.tsx';
+import SmttLogo from '../../components/SmttLogo.tsx';
 import { AppNotification, AsBuiltReportRecord, SupabaseProfile, TicketB2CRecord } from '../../types';
 import { isSupabaseConfigured } from '../../lib/supabase.js';
 import { compressImage } from '../../utils/imageCompressor.js';
@@ -1048,6 +1049,8 @@ export default function Admin1Page({ fullName, onLogout }: Admin1PageProps) {
       {/* Top Main Navbar */}
       <nav id="navbar-main" className="bg-slate-900 border-b border-slate-800 px-4 md:px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
         <div id="navbar-brand-sec" className="flex items-center gap-3">
+          <SmttLogo height={32} />
+          <div className="h-6 w-px bg-slate-800" />
           <div className="bg-gradient-to-br from-red-600 to-orange-500 text-white font-black px-3 py-1.5 rounded-xl tracking-tighter text-base shadow-lg shadow-red-600/20">
             Ooredoo
           </div>

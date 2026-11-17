@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Lock, Mail, Eye, EyeOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { isSupabaseConfigured } from '../../lib/supabase.js';
 import { signInWithSupabase } from '../../services/supabaseService';
+import SmttLogo from '../../components/SmttLogo.tsx';
 
 interface LoginPageProps {
   onLoginSuccess: (
@@ -87,7 +88,8 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     <div id="login-container" className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
       {/* Top Navbar */}
       <nav id="top-navbar" className="bg-blue-900 border-b border-blue-800 px-6 py-4 flex items-center justify-between shadow-md">
-        <div id="navbar-brand" className="flex items-center gap-2">
+        <div id="navbar-brand" className="flex items-center gap-3">
+          <SmttLogo height={34} />
           <span className="font-bold text-xl tracking-wider text-white">SMTT B2B</span>
           <span className="text-blue-300 font-medium">|</span>
           <span className="text-blue-100 font-light text-sm tracking-wide">Ticket Manager</span>
