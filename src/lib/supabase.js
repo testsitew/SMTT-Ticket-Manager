@@ -1,16 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl =
-  import.meta.env.VITE_SUPABASE_URL || 'COLLE_TON_PROJECT_URL_ICI';
+  import.meta.env.VITE_SUPABASE_URL || 'https://rhsbelnoeqomyukfhsrj.supabase.co';
 const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'COLLE_TA_CLE_ANON_PUBLIC_ICI';
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_hp3imdFpQ3Z4ww03jv0qtA_8ZS5AQXW';
 
 export const isSupabaseConfigured =
   typeof supabaseUrl === 'string' &&
   typeof supabaseAnonKey === 'string' &&
-  supabaseUrl.startsWith('http') &&
-  !supabaseUrl.includes('COLLE_TON_PROJECT_URL_ICI') &&
-  !supabaseAnonKey.includes('COLLE_TA_CLE_ANON_PUBLIC_ICI');
+  supabaseUrl.startsWith('http');
 
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
