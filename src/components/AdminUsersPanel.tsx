@@ -56,38 +56,17 @@ export default function AdminUsersPanel() {
   const loadProfiles = useCallback(async () => {
     setLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        const list = await fetchAllProfiles();
-        setProfiles(list);
-        const drafts: Record<string, string> = {};
-        list.forEach((p) => {
-          drafts[p.id] = p.zone || '';
-        });
-        setZoneDrafts(drafts);
-      } else {
-        const stored = localStorage.getItem('smtt_users');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const mapped: SupabaseProfile[] = parsed.map((u: any) => ({
-            id: u.id,
-            nom: u.fullName || u.nom || u.username,
-            email: u.email || u.username,
-            role: u.role,
-            zone: u.zone || '',
-            actif: u.actif !== false,
-          }));
-          setProfiles(mapped);
-          const drafts: Record<string, string> = {};
-          mapped.forEach((p) => {
-            drafts[p.id] = p.zone || '';
-          });
-          setZoneDrafts(drafts);
-        }
-      }
+      const list = await fetchAllProfiles();
+      setProfiles(list);
+      const drafts: Record<string, string> = {};
+      list.forEach((p) => {
+        drafts[p.id] = p.zone || '';
+      });
+      setZoneDrafts(drafts);
     } catch (err: any) {
       setFeedback({
         type: 'error',
-        message: err?.message || 'Erreur lors du chargement des utilisateurs.',
+        message: err?.message || 'Erreur lors du chargement des utilisateurs depuis Supabase.',
       });
     } finally {
       setLoading(false);
@@ -111,7 +90,7 @@ export default function AdminUsersPanel() {
     if (!nom.trim() || !email.trim() || !password.trim()) {
       setFeedback({
         type: 'warning',
-        message: 'Veuillez renseigner le nom complet, email et mot de passe.',
+        message: 'Veuillez renseigner le nom complet, l\'identifiant et le mot de passe.',
       });
       return;
     }
@@ -126,40 +105,18 @@ export default function AdminUsersPanel() {
 
     setCreating(true);
     try {
-      if (isSupabaseConfigured) {
-        await createUserAccountAdmin({
-          nom: nom.trim(),
-          email: email.trim(),
-          password,
-          role,
-          zone: zone.trim(),
-        });
-        setFeedback({
-          type: 'success',
-          message: `Compte créé pour ${nom.trim()} (${role}) sans déconnecter votre session Admin.`,
-        });
-        await loadProfiles();
-      } else {
-        const stored = localStorage.getItem('smtt_users');
-        const list = stored ? JSON.parse(stored) : [];
-        const newLocal = {
-          id: `USR-${Date.now().toString().slice(-4)}`,
-          fullName: nom.trim(),
-          username: email.trim(),
-          email: email.trim(),
-          password,
-          role,
-          zone: zone.trim(),
-          actif: true,
-        };
-        const updated = [...list, newLocal];
-        localStorage.setItem('smtt_users', JSON.stringify(updated));
-        await loadProfiles();
-        setFeedback({
-          type: 'warning',
-          message: `Utilisateur ${nom.trim()} enregistré localement. Renseignez vos clés Supabase dans src/lib/supabase.js pour la création automatique dans auth.users.`,
-        });
-      }
+      await createUserAccountAdmin({
+        nom: nom.trim(),
+        email: email.trim(),
+        password,
+        role,
+        zone: zone.trim(),
+      });
+      setFeedback({
+        type: 'success',
+        message: `Compte créé avec succès pour ${nom.trim()} (${role}) dans Supabase.`,
+      });
+      await loadProfiles();
 
       setNom('');
       setEmail('');
@@ -169,7 +126,7 @@ export default function AdminUsersPanel() {
     } catch (err: any) {
       setFeedback({
         type: 'error',
-        message: err?.message || 'Impossible de créer le compte utilisateur.',
+        message: err?.message || 'Impossible de créer le compte utilisateur dans Supabase.',
       });
     } finally {
       setCreating(false);
@@ -179,18 +136,8 @@ export default function AdminUsersPanel() {
   const handleUpdateRole = async (profile: SupabaseProfile, newRole: string) => {
     setSavingId(profile.id);
     try {
-      if (isSupabaseConfigured) {
-        await updateProfileAdmin(profile.id, { role: newRole });
-        await loadProfiles();
-      } else {
-        const stored = localStorage.getItem('smtt_users');
-        const list = stored ? JSON.parse(stored) : [];
-        const updated = list.map((u: any) =>
-          u.id === profile.id ? { ...u, role: newRole } : u
-        );
-        localStorage.setItem('smtt_users', JSON.stringify(updated));
-        await loadProfiles();
-      }
+      await updateProfileAdmin(profile.id, { role: newRole as any });
+      await loadProfiles();
       setFeedback({
         type: 'success',
         message: `Rôle mis à jour pour ${profile.nom} : ${newRole}`,
@@ -198,7 +145,7 @@ export default function AdminUsersPanel() {
     } catch (err: any) {
       setFeedback({
         type: 'error',
-        message: err?.message || 'Erreur lors de la modification du rôle.',
+        message: err?.message || 'Erreur lors de la modification du rôle dans Supabase.',
       });
     } finally {
       setSavingId(null);
@@ -209,18 +156,8 @@ export default function AdminUsersPanel() {
     const newZone = (zoneDrafts[profile.id] ?? '').trim();
     setSavingId(profile.id);
     try {
-      if (isSupabaseConfigured) {
-        await updateProfileAdmin(profile.id, { zone: newZone });
-        await loadProfiles();
-      } else {
-        const stored = localStorage.getItem('smtt_users');
-        const list = stored ? JSON.parse(stored) : [];
-        const updated = list.map((u: any) =>
-          u.id === profile.id ? { ...u, zone: newZone } : u
-        );
-        localStorage.setItem('smtt_users', JSON.stringify(updated));
-        await loadProfiles();
-      }
+      await updateProfileAdmin(profile.id, { zone: newZone });
+      await loadProfiles();
       setFeedback({
         type: 'success',
         message: `Zone mise à jour pour ${profile.nom}.`,
@@ -228,7 +165,7 @@ export default function AdminUsersPanel() {
     } catch (err: any) {
       setFeedback({
         type: 'error',
-        message: err?.message || 'Erreur lors de la modification de la zone.',
+        message: err?.message || 'Erreur lors de la modification de la zone dans Supabase.',
       });
     } finally {
       setSavingId(null);
@@ -239,18 +176,8 @@ export default function AdminUsersPanel() {
     const nextActive = profile.actif === false;
     setSavingId(profile.id);
     try {
-      if (isSupabaseConfigured) {
-        await updateProfileAdmin(profile.id, { actif: nextActive });
-        await loadProfiles();
-      } else {
-        const stored = localStorage.getItem('smtt_users');
-        const list = stored ? JSON.parse(stored) : [];
-        const updated = list.map((u: any) =>
-          u.id === profile.id ? { ...u, actif: nextActive } : u
-        );
-        localStorage.setItem('smtt_users', JSON.stringify(updated));
-        await loadProfiles();
-      }
+      await updateProfileAdmin(profile.id, { actif: nextActive });
+      await loadProfiles();
       setFeedback({
         type: 'success',
         message: `Compte ${profile.nom} ${nextActive ? 'activé' : 'désactivé'}.`,
@@ -258,7 +185,7 @@ export default function AdminUsersPanel() {
     } catch (err: any) {
       setFeedback({
         type: 'error',
-        message: err?.message || 'Erreur lors du changement de statut.',
+        message: err?.message || 'Erreur lors du changement de statut dans Supabase.',
       });
     } finally {
       setSavingId(null);
