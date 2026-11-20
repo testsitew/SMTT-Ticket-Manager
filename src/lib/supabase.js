@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl =
-  import.meta.env?.VITE_SUPABASE_URL || 'COLLE_TON_PROJECT_URL_ICI';
+  import.meta.env.VITE_SUPABASE_URL || 'COLLE_TON_PROJECT_URL_ICI';
 const supabaseAnonKey =
-  import.meta.env?.VITE_SUPABASE_ANON_KEY || 'COLLE_TA_CLE_ANON_PUBLIC_ICI';
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'COLLE_TA_CLE_ANON_PUBLIC_ICI';
 
 export const isSupabaseConfigured =
   typeof supabaseUrl === 'string' &&
