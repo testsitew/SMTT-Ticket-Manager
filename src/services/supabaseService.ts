@@ -23,6 +23,15 @@ export function isUuid(value?: string | null): boolean {
 // 1. AUTHENTICATION & PROFILES
 // ---------------------------------------------------------------------------
 
+export function normalizeIdentifier(input: string): string {
+  if (!input) return '';
+  const trimmed = input.trim().toLowerCase();
+  if (!trimmed.includes('@')) {
+    return `${trimmed}@smtt.tn`;
+  }
+  return trimmed;
+}
+
 export async function signInWithSupabase(email: string, password: string): Promise<{
   user: { id: string; email: string };
   profile: SupabaseProfile;
@@ -31,13 +40,15 @@ export async function signInWithSupabase(email: string, password: string): Promi
     throw new Error('Supabase non configuré (renseignez src/lib/supabase.js).');
   }
 
+  const normalizedEmail = normalizeIdentifier(email);
+
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
+    email: normalizedEmail,
     password,
   });
 
   if (error || !data.user) {
-    throw new Error(error?.message || 'Email ou mot de passe incorrect.');
+    throw new Error(error?.message || 'Identifiant ou mot de passe incorrect.');
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -61,7 +72,7 @@ export async function signInWithSupabase(email: string, password: string): Promi
   return {
     user: {
       id: data.user.id,
-      email: data.user.email || email.trim(),
+      email: data.user.email || normalizedEmail,
     },
     profile: profile as SupabaseProfile,
   };
@@ -132,8 +143,10 @@ export async function createUserAccountAdmin(params: {
     throw new Error('Supabase non configuré dans src/lib/supabase.js.');
   }
 
+  const normalizedEmail = normalizeIdentifier(params.email);
+
   const { data, error } = await secondaryClient.auth.signUp({
-    email: params.email.trim(),
+    email: normalizedEmail,
     password: params.password,
     options: {
       data: {
@@ -148,21 +161,19 @@ export async function createUserAccountAdmin(params: {
     throw new Error(error.message);
   }
 
-  // Fallback upsert in case SQL trigger runs asynchronously or lacks email/actif defaults
   if (data.user && supabase) {
-    try {
-      await supabase.from('profiles').upsert(
-        {
-          id: data.user.id,
-          nom: params.nom.trim(),
-          role: params.role,
-          zone: params.zone.trim(),
-          actif: true,
-        },
-        { onConflict: 'id' }
-      );
-    } catch {
-      // Trigger may already handle insert or RLS may restrict upsert; safe to ignore
+    const { error: profileErr } = await supabase.from('profiles').upsert(
+      {
+        id: data.user.id,
+        nom: params.nom.trim(),
+        role: params.role,
+        zone: params.zone.trim(),
+        actif: true,
+      },
+      { onConflict: 'id' }
+    );
+    if (profileErr) {
+      throw new Error(`Erreur base de données / profil Supabase: ${profileErr.message}`);
     }
   }
 
@@ -217,19 +228,20 @@ export function subscribeProfilesRealtime(onUpdate: () => void): () => void {
 export async function fetchTicketsB2C(): Promise<TicketB2CRecord[]> {
   if (!supabase || !isSupabaseConfigured) return [];
 
-  const { data, error } = await supabase
-    .from('tickets_b2c')
+  let { data, error } = await supabase
+    .from('tickets')
     .select('*, technicien:profiles(nom, zone)')
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.warn('Lecture tickets_b2c avec jointure fallback:', error.message);
-    const simple = await supabase.from('tickets_b2c').select('*');
-    if (simple.error) {
-      console.error('Erreur chargement tickets_b2c:', simple.error);
-      return [];
+  if (error || !data) {
+    const res2 = await supabase
+      .from('tickets_b2c')
+      .select('*, technicien:profiles(nom, zone)')
+      .order('created_at', { ascending: false });
+    if (res2.error) {
+      throw new Error(`Erreur chargement tickets Supabase: ${res2.error.message}`);
     }
-    return (simple.data || []) as TicketB2CRecord[];
+    data = res2.data;
   }
 
   return (data || []) as TicketB2CRecord[];
@@ -251,41 +263,26 @@ export async function createTicketB2C(payload: {
 }): Promise<TicketB2CRecord | null> {
   if (!supabase || !isSupabaseConfigured) return null;
 
-  const { data, error } = await supabase
-    .from('tickets_b2c')
+  let { data, error } = await supabase
+    .from('tickets')
     .insert(payload)
     .select('*, technicien:profiles(nom, zone)')
     .single();
 
-  if (!error && data) {
-    return data as TicketB2CRecord;
+  if (error || !data) {
+    const retry = await supabase
+      .from('tickets_b2c')
+      .insert(payload)
+      .select('*, technicien:profiles(nom, zone)')
+      .single();
+
+    if (retry.error) {
+      throw new Error(`Erreur création ticket Supabase: ${retry.error.message}`);
+    }
+    data = retry.data;
   }
 
-  // Fallback with minimal guaranteed columns if schema uses a narrower subset
-  const minimalPayload: Record<string, unknown> = {
-    statut: payload.statut || 'Créé',
-  };
-  if (payload.date_planification) {
-    minimalPayload.date_planification = payload.date_planification;
-  }
-  if (payload.technicien_id && isUuid(payload.technicien_id)) {
-    minimalPayload.technicien_id = payload.technicien_id;
-  }
-  if (payload.client) minimalPayload.client = payload.client;
-  if (payload.code_site) minimalPayload.code_site = payload.code_site;
-  if (payload.titre) minimalPayload.titre = payload.titre;
-
-  const retry = await supabase
-    .from('tickets_b2c')
-    .insert(minimalPayload)
-    .select('*')
-    .single();
-
-  if (retry.error) {
-    console.error('Erreur création ticket tickets_b2c:', retry.error);
-    throw new Error(retry.error.message);
-  }
-  return retry.data as TicketB2CRecord;
+  return data as TicketB2CRecord;
 }
 
 export async function updateTicketB2CPlanificationAndStatut(
@@ -294,16 +291,27 @@ export async function updateTicketB2CPlanificationAndStatut(
 ): Promise<TicketB2CRecord | null> {
   if (!supabase || !isSupabaseConfigured || !isUuid(ticketId)) return null;
 
-  const { data, error } = await supabase
-    .from('tickets_b2c')
+  let { data, error } = await supabase
+    .from('tickets')
     .update(updates)
     .eq('id', ticketId)
     .select('*, technicien:profiles(nom, zone)')
     .single();
 
-  if (error) {
-    throw new Error(error.message);
+  if (error || !data) {
+    const retry = await supabase
+      .from('tickets_b2c')
+      .update(updates)
+      .eq('id', ticketId)
+      .select('*, technicien:profiles(nom, zone)')
+      .single();
+
+    if (retry.error) {
+      throw new Error(`Erreur mise à jour ticket Supabase: ${retry.error.message}`);
+    }
+    data = retry.data;
   }
+
   return data as TicketB2CRecord;
 }
 
@@ -322,9 +330,12 @@ export async function deleteTicketB2C(ticketId: string): Promise<void> {
     await cleanupStorageFolderForReports(reportIds);
   }
 
-  const { error } = await supabase.from('tickets_b2c').delete().eq('id', ticketId);
+  const { error } = await supabase.from('tickets').delete().eq('id', ticketId);
   if (error) {
-    throw new Error(error.message);
+    const retry = await supabase.from('tickets_b2c').delete().eq('id', ticketId);
+    if (retry.error) {
+      throw new Error(`Erreur suppression ticket Supabase: ${retry.error.message}`);
+    }
   }
 }
 

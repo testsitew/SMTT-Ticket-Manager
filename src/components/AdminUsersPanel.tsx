@@ -330,7 +330,7 @@ export default function AdminUsersPanel() {
 
             <div className="space-y-1">
               <label className="text-slate-400 font-bold uppercase block tracking-wider text-[10px]">
-                Email *
+                Identifiant *
               </label>
               <div className="relative">
                 <Mail
@@ -338,10 +338,10 @@ export default function AdminUsersPanel() {
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
                 />
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="sami@smtt.tn"
+                  placeholder="it ou nom"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-9 pr-3 text-white focus:outline-none focus:border-orange-500"
                   required
                 />

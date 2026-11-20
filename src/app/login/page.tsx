@@ -132,10 +132,10 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
           {/* Form */}
           <form id="login-form" onSubmit={handleSubmit} className="space-y-6">
-            {/* Email Field */}
+            {/* Identifier Field */}
             <div id="username-group" className="space-y-2">
               <label htmlFor="username" className="text-xs font-semibold uppercase tracking-wider text-slate-400 block">
-                {isSupabaseConfigured ? 'Email' : 'Email ou Identifiant'}
+                Identifiant
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
@@ -143,10 +143,10 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 </span>
                 <input
                   id="username"
-                  type={isSupabaseConfigured ? 'email' : 'text'}
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email professionnel (ex: nom@smtt.tn)"
+                  placeholder="Identifiant (ex: it ou nom)"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 />
               </div>
